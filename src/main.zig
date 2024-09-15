@@ -54,7 +54,15 @@ pub fn main() !void {
             }
 
             const suffix = ".git";
-            route = try allocator.dupe(u8, element[0 .. element.len - suffix.len]);
+
+            // remove .git only if found in element.
+            route = route: {
+                if (std.mem.endsWith(u8, element, suffix)) {
+                    break :route try allocator.dupe(u8, element[0 .. element.len - suffix.len]);
+                }
+
+                break :route try allocator.dupe(u8, element[0..]);
+            };
         }
 
         std.debug.assert(hostname != null and route != null);
