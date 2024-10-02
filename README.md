@@ -24,7 +24,7 @@ open-repo
 
 This will open a browser with the opened repository.
 
-> [!INFO]
+> [!NOTE]
 > This program also works with ssh based git urls, take a look at the output of `git remote get-url <origin>`
 
 ## Todo
