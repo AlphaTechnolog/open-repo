@@ -1,11 +1,39 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+fn showHelp() !void {
+    const stderr = std.io.getStdErr().writer();
+    try stderr.print("usage: open-repo [-h/--help] [-d/--dump-url]\n", .{});
+    std.posix.exit(1);
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer if (gpa.deinit() == .leak) @panic("memleak\n");
 
     const allocator = gpa.allocator();
+
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
+    const Flags = struct {
+        dump_url: bool = false,
+    };
+
+    var flags = Flags{};
+
+    for (args) |arg| {
+        if (arg[0] == '-') {
+            if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+                return try showHelp();
+            }
+
+            if (std.mem.eql(u8, arg, "--dump-arg") or std.mem.eql(u8, arg, "-d")) {
+                flags.dump_url = true;
+            }
+        }
+    }
+
     const argv = [_][]const u8{ "git", "remote", "get-url", "origin" };
 
     const result = try std.process.Child.run(.{
@@ -78,6 +106,12 @@ pub fn main() !void {
     defer if (!std.mem.eql(u8, final_url, url)) {
         allocator.free(final_url);
     };
+
+    if (flags.dump_url) {
+        const stdout = std.io.getStdOut().writer();
+        try stdout.print("{s}\n", .{final_url});
+        return std.posix.exit(0);
+    }
 
     const open_on_browser = [_][]const u8{ "xdg-open", final_url };
 
