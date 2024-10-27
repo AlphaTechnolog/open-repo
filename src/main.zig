@@ -1,10 +1,27 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-fn showHelp() !void {
+// TODO: Add way to format message.
+fn fatalError(comptime message: []const u8) !void {
     const stderr = std.io.getStdErr().writer();
-    try stderr.print("usage: open-repo [-h/--help] [-d/--dump-url]\n", .{});
+    try stderr.print(message, .{});
     std.posix.exit(1);
+}
+
+fn showHelp() !void {
+    try fatalError("usage: open-repo [-h/--help] [-d/--dump-url]\n");
+}
+
+fn isGitRepo() std.fs.Dir.AccessError!bool {
+    std.fs.cwd().access(".git", .{}) catch |err| {
+        if (err == error.FileNotFound) {
+            return false;
+        }
+
+        return err;
+    };
+
+    return true;
 }
 
 pub fn main() !void {
@@ -12,6 +29,16 @@ pub fn main() !void {
     defer if (gpa.deinit() == .leak) @panic("memleak\n");
 
     const allocator = gpa.allocator();
+
+    const is_git_repo = isGitRepo() catch |err| {
+        const stderr = std.io.getStdErr().writer();
+        stderr.print("Unable to open .git folder: {s}\n", .{@errorName(err)}) catch return;
+        return std.posix.exit(1);
+    };
+
+    if (!is_git_repo) {
+        return try fatalError("This folder is not a git repository\n");
+    }
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
